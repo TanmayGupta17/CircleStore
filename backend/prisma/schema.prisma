@@ -1,0 +1,265 @@
+// CircleStore — schema-driven marketplace
+//
+// The central idea: the sell form is DATA, not code. Categories and their fields
+// live in these tables, and a single renderer/validator consumes them. Adding a
+// new category or field is an admin action, not a deploy.
+//
+// Storage split:
+//   - Information the PLATFORM reasons about (search, sort, filter, cards)  -> real columns on Listing
+//   - Information only a HUMAN reads (category-specific specs)              -> Listing.attributes (JSONB)
+// See README "Common vs category-specific" for the decision rule.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Field type system
+// ---------------------------------------------------------------------------
+
+/// Every type here has exactly one strategy object in
+/// src/core/field-types/. Adding a value to this enum without adding a strategy
+/// is a compile error — that is the guardrail that keeps the system extensible.
+enum FieldType {
+  TEXT
+  TEXTAREA
+  NUMBER
+  SELECT
+  MULTISELECT
+  RADIO
+  BOOLEAN
+  DATE
+}
+
+enum ListingCondition {
+  NEW
+  LIKE_NEW
+  GOOD
+  FAIR
+}
+
+enum ListingStatus {
+  DRAFT
+  ACTIVE
+  SOLD
+  ARCHIVED
+}
+
+// ---------------------------------------------------------------------------
+// Category tree
+// ---------------------------------------------------------------------------
+
+model Category {
+  id          String  @id @default(uuid())
+  name        String
+  slug        String  @unique
+  description String?
+  icon        String?
+  sortOrder   Int     @default(0)
+
+  /// Soft delete. Categories are never hard-deleted because listings reference them.
+  isActive Boolean @default(true)
+
+  /// Self-relation enables Electronics > Mobile Phone. A child category
+  /// inherits its ancestors' fields (resolved in core/schema/resolver.ts).
+  parentId String?
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children Category[] @relation("CategoryTree")
+
+  categoryFields CategoryField[]
+  listings       Listing[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([parentId])
+  @@index([isActive, sortOrder])
+  @@map("categories")
+}
+
+// ---------------------------------------------------------------------------
+// Global field library
+// ---------------------------------------------------------------------------
+
+/// Fields are defined ONCE globally and attached to many categories.
+/// "RAM" is a single row used by both Mobile Phone and Laptop — this is what
+/// makes cross-category answer carry-over possible in the sell flow.
+model Field {
+  id String @id @default(uuid())
+
+  /// Machine key used as the JSONB key in Listing.attributes.
+  /// IMMUTABLE after creation — changing it would orphan stored values.
+  key String @unique
+
+  label    String
+  helpText String?
+
+  /// IMMUTABLE once any listing holds a value for this field. Changing a
+  /// NUMBER to TEXT would invalidate every stored value. Enforced in FieldService.
+  type FieldType
+
+  /// Rendered as an input suffix, e.g. "GB", "inches", "%".
+  unit String?
+
+  /// { required?, min?, max?, minLength?, maxLength?, step?, pattern? }
+  /// Interpreted by the field-type strategy that owns this field's type.
+  validation Json @default("{}")
+
+  defaultValue String?
+  placeholder  String?
+
+  /// Soft delete. Listings keep rendering via Listing.schemaSnapshot.
+  isActive Boolean @default(true)
+
+  options        FieldOption[]
+  categoryFields CategoryField[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive])
+  @@map("fields")
+}
+
+/// Choices for SELECT / MULTISELECT / RADIO.
+/// Kept relational rather than inline JSON so options can be reordered and
+/// soft-deleted individually without rewriting the whole field.
+model FieldOption {
+  id      String @id @default(uuid())
+  fieldId String
+  field   Field  @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+
+  value     String
+  label     String
+  sortOrder Int     @default(0)
+  isActive  Boolean @default(true)
+
+  createdAt DateTime @default(now())
+
+  @@unique([fieldId, value])
+  @@index([fieldId, sortOrder])
+  @@map("field_options")
+}
+
+// ---------------------------------------------------------------------------
+// Category <-> Field mapping (where per-category behaviour lives)
+// ---------------------------------------------------------------------------
+
+/// The join table carries the CONFIGURATION, not just the link. The same
+/// "RAM" field can be required on Laptop and optional on Mobile Phone, sit in
+/// different sections, and carry different min/max — without duplicating the field.
+model CategoryField {
+  id         String   @id @default(uuid())
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  fieldId    String
+  field      Field    @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+
+  isRequired Boolean @default(false)
+  sortOrder  Int     @default(0)
+
+  /// Groups fields into form sections, e.g. "Specifications", "Condition".
+  section String @default("Details")
+
+  /// Surfaces this value on the homepage product card without promoting the
+  /// field to a real column.
+  showInCard Boolean @default(false)
+
+  /// Conditional display, e.g.
+  /// { "all": [ { "field": "under_warranty", "op": "eq", "value": "yes" } ] }
+  /// A hidden field is never required and its value is stripped before save.
+  visibilityRule Json?
+
+  /// Per-category validation overrides merged over Field.validation.
+  overrides Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([categoryId, fieldId])
+  @@index([categoryId, sortOrder])
+  @@map("category_fields")
+}
+
+// ---------------------------------------------------------------------------
+// Listings
+// ---------------------------------------------------------------------------
+
+model Listing {
+  id   String @id @default(uuid())
+  slug String @unique
+
+  /// No auth in this build — a fixed demo seller. See README "Out of scope".
+  sellerId   String
+  sellerName String
+
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  // --- Common information: every listing has these regardless of category. ---
+  // These are real columns because application code reasons about them
+  // (search, sort, filter, card rendering).
+  title       String
+  description String
+  priceCents  Int
+  currency    String           @default("INR")
+  condition   ListingCondition
+  city        String
+  status      ListingStatus    @default(ACTIVE)
+
+  /// Category-specific answers, keyed by Field.key.
+  /// e.g. { "brand": "Apple", "storage": "256", "battery_health": 89 }
+  attributes Json @default("{}")
+
+  /// Field definitions frozen at submit time. The PDP renders from THIS, not
+  /// from live definitions, so admin edits/deletes never corrupt existing
+  /// listings. See README ADR-004.
+  schemaSnapshot Json @default("[]")
+
+  images ListingImage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@index([categoryId, status, createdAt])
+  // Enables faceted filtering on category-specific values without a table scan,
+  // e.g. attributes @> '{"brand":"Apple"}'
+  @@index([attributes], type: Gin)
+  @@map("listings")
+}
+
+/// Images are COMMON to every listing, so they get a first-class table rather
+/// than being a dynamic field type — they need presigning, ordering and
+/// dimensions, a lifecycle no other field type has.
+model ListingImage {
+  id        String  @id @default(uuid())
+  listingId String
+  listing   Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  url String
+
+  /// Provider-side key, needed for deletion. Null for seeded/external URLs,
+  /// which we must not attempt to delete.
+  storageKey String?
+
+  alt String?
+
+  /// Stored so the PDP and cards can reserve space and avoid layout shift.
+  width  Int?
+  height Int?
+
+  /// Primary image is sortOrder = 0. Deliberately NOT a separate isPrimary
+  /// flag — defining it positionally makes "two primaries" unrepresentable.
+  sortOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([listingId, sortOrder])
+  @@map("listing_images")
+}

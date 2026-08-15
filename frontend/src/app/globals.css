@@ -1,0 +1,99 @@
+@import 'tailwindcss';
+
+/**
+ * Design tokens.
+ *
+ * Defined once here and consumed as Tailwind utilities (`bg-surface`,
+ * `text-muted`, `border-line`) so components never hard-code a hex value and
+ * dark mode is a token swap rather than a per-component variant.
+ */
+@theme {
+  --color-brand-50: #eefbf6;
+  --color-brand-100: #d5f5e8;
+  --color-brand-200: #aeead4;
+  --color-brand-300: #78d8ba;
+  --color-brand-400: #41bd9a;
+  --color-brand-500: #1da27f;
+  --color-brand-600: #108267;
+  --color-brand-700: #0d6854;
+  --color-brand-800: #0d5344;
+  --color-brand-900: #0b4539;
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+:root {
+  --background: #f7f8f7;
+  --surface: #ffffff;
+  --surface-muted: #f2f4f3;
+  --foreground: #12171f;
+  --muted: #61707f;
+  --line: #e2e7e6;
+  --ring: #1da27f;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0b0f14;
+    --surface: #131a21;
+    --surface-muted: #1a232c;
+    --foreground: #e9eef2;
+    --muted: #94a3af;
+    --line: #26313b;
+    --ring: #41bd9a;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+/* Consistent focus treatment across every interactive element. */
+*:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* Modal entrance. Defined here rather than pulled in via a plugin, and disabled
+   for anyone who prefers reduced motion. */
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.modal-panel {
+  animation: modal-in 150ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-panel {
+    animation: none;
+  }
+}
+
+/* Hide the spin buttons on number inputs; they clash with the unit suffix. */
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type='number'] {
+  -moz-appearance: textfield;
+}

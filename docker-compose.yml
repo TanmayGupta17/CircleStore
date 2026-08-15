@@ -1,0 +1,28 @@
+# Local Postgres for CircleStore.
+#
+# Port 5433 is deliberate: it avoids colliding with a Postgres install already
+# listening on the default 5432.
+#
+#   docker compose up -d
+#
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: circlestore-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: circlestore
+      POSTGRES_PASSWORD: circlestore
+      POSTGRES_DB: circlestore
+    ports:
+      - '5433:5432'
+    volumes:
+      - circlestore-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U circlestore -d circlestore']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  circlestore-data:

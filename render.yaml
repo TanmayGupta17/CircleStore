@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: circlestore-api
+    runtime: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm install && npm run db:setup && npm run build
+    startCommand: npm run start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+      - key: DEMO_SELLER_ID
+        value: demo-seller
+      - key: DEMO_SELLER_NAME
+        value: Demo Seller
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: CLOUDINARY_FOLDER
+        value: circlestore/listings
+      - key: CLOUDINARY_UPLOAD_PRESET
+        sync: false
+      - key: UPLOAD_MAX_BYTES
+        value: "5242880"
