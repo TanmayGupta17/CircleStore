@@ -13,7 +13,7 @@ services:
       - key: DATABASE_URL
         sync: false
       - key: CORS_ORIGINS
-        value: https://frontend-gugckar6p-tanmaygupta17s-projects.vercel.app
+        value: https://frontend-dhongirzp-tanmaygupta17s-projects.vercel.app
       - key: DEMO_SELLER_ID
         value: demo-seller
       - key: DEMO_SELLER_NAME
