@@ -4,10 +4,13 @@ services:
     runtime: node
     plan: free
     rootDir: backend
-    buildCommand: npm install && npm run db:setup && npm run build
+    buildCommand: npm ci --include=dev && npx prisma generate && npm run build
+    preDeployCommand: npx prisma migrate deploy && npm run seed
     startCommand: npm run start
     healthCheckPath: /health
     envVars:
+      - key: NPM_CONFIG_PRODUCTION
+        value: "false"
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
