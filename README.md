@@ -14,6 +14,7 @@ There are **no per-category form components anywhere in this codebase.**
 ## Table of contents
 
 - [Quick start](#quick-start)
+- [Live deployment](#live-deployment)
 - [What you can try](#what-you-can-try)
 - [Architecture](#architecture)
 - [Data model](#data-model)
@@ -29,7 +30,7 @@ There are **no per-category form components anywhere in this codebase.**
 
 ## Quick start
 
-**Prerequisites:** Node 20+, and either Docker or a local PostgreSQL 14+.
+**Prerequisites:** Node 22+, and either Docker or a local/Postgres hosted database.
 
 ```bash
 # 1. Database
@@ -60,11 +61,70 @@ same commands.
 | Command | What it does |
 |---|---|
 | `npm run dev` | Start with hot reload |
+| `npm run build` | Build backend and frontend |
 | `npm test` | Schema-engine unit tests (backend) |
+| `npm --prefix backend run db:setup` | Apply migrations, generate Prisma client, and seed safely |
 | `npm run seed` | Seed sample data — **safe**, skips if data already exists |
 | `npm run seed:fresh` | Wipe and reseed (destructive) |
 | `npm run db:reset` | Drop, migrate and reseed |
 | `npm run prisma:studio` | Browse the database |
+
+---
+
+## Live deployment
+
+- **Frontend:** https://frontend-pi-vert-67.vercel.app
+- **Backend API:** https://circlestore-api-wog9.onrender.com
+- **Source code:** https://github.com/TanmayGupta17/CircleStore
+
+The deployed frontend runs on Vercel. The backend API runs on Render, with PostgreSQL hosted on
+Render. Cloudinary direct uploads are enabled only when credentials are configured; otherwise the
+sell flow falls back to pasted image URLs.
+
+### Backend: Render
+
+The backend is deployed as a Render Web Service from the `backend/` folder.
+
+```txt
+Root Directory: backend
+Build Command: npm install && npm run db:setup && npm run build
+Start Command: npm run start
+Health Check Path: /health
+```
+
+Required Render environment variables:
+
+```env
+DATABASE_URL=<Render internal PostgreSQL URL>
+NODE_ENV=production
+CORS_ORIGINS=https://frontend-pi-vert-67.vercel.app
+DEMO_SELLER_ID=demo-seller
+DEMO_SELLER_NAME=Demo Seller
+CLOUDINARY_CLOUD_NAME=
+CLOUDINARY_API_KEY=
+CLOUDINARY_API_SECRET=
+CLOUDINARY_FOLDER=circlestore/listings
+CLOUDINARY_UPLOAD_PRESET=
+UPLOAD_MAX_BYTES=5242880
+```
+
+`DATABASE_URL` is the only required secret for the API to boot. Cloudinary variables are optional.
+
+### Frontend: Vercel
+
+The frontend is deployed from the `frontend/` folder.
+
+For local development, `frontend/.env.local` should contain:
+
+```env
+NEXT_PUBLIC_API_URL=http://localhost:4000/api
+```
+
+For Vercel production, the configured value is:
+
+```env
+NEXT_PUBLIC_API_URL=https://circlestore-api-wog9.onrender.com/api
+```
 
 ---
 
