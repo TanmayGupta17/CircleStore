@@ -16,7 +16,7 @@ services:
       - key: DATABASE_URL
         sync: false
       - key: CORS_ORIGINS
-        value: https://frontend-pi-vert-67.vercel.app
+        value: https://frontend-pi-vert-67.vercel.app,https://frontend-ju5rffnsl-tanmaygupta17s-projects.vercel.app
       - key: DEMO_SELLER_ID
         value: demo-seller
       - key: DEMO_SELLER_NAME
