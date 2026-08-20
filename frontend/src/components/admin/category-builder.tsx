@@ -59,6 +59,16 @@ export function CategoryBuilder({
       if (cancelled) return;
       setAttachments(rows);
       setSchema(form);
+    }).catch((caught: unknown) => {
+      if (cancelled) return;
+      if (caught instanceof ApiError) {
+        setError(caught.message);
+        setIssues(caught.issues);
+      } else {
+        setError(
+          'Could not reach the API. Check that the backend is running and allows this site in its CORS configuration.',
+        );
+      }
     });
 
     return () => {
@@ -80,7 +90,9 @@ export function CategoryBuilder({
         setError(caught.message);
         setIssues(caught.issues);
       } else {
-        setError('Something went wrong.');
+        setError(
+          'Could not reach the API. Check that the backend is running and allows this site in its CORS configuration.',
+        );
       }
     } finally {
       setBusy(false);

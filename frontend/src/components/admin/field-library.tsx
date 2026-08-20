@@ -81,7 +81,9 @@ export function FieldLibrary({
         setError(caught.message);
         setIssues([...caught.issues, ...Object.values(caught.fieldErrors)]);
       } else {
-        setError('Could not save the field.');
+        setError(
+          'Could not reach the API. Check that the backend is running and allows this site in its CORS configuration.',
+        );
       }
     } finally {
       setSaving(false);

@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { resolveCorsOrigins } from './cors';
 
 /**
  * Single place where `process.env` is read. Everything else receives typed
@@ -28,10 +29,7 @@ export const env = {
   databaseUrl: required('DATABASE_URL'),
 
   /** Comma-separated list of allowed browser origins. */
-  corsOrigins: (process.env.CORS_ORIGINS ?? 'http://localhost:3000')
-    .split(',')
-    .map((origin) => origin.trim())
-    .filter(Boolean),
+  corsOrigins: resolveCorsOrigins(process.env.CORS_ORIGINS),
 
   /**
    * No auth in this build — every listing is attributed to this seller.

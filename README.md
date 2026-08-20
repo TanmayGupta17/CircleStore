@@ -112,7 +112,11 @@ UPLOAD_MAX_BYTES=5242880
 
 ### Frontend: Vercel
 
-The frontend is deployed from the `frontend/` folder.
+The frontend is deployed from the `frontend/` folder. In the Vercel project's
+**Settings → Build and Deployment**, set **Root Directory** to `frontend` so
+Vercel installs and builds only the Next.js application. The root `vercel.json`
+also preserves this behaviour for an existing project whose Root Directory is
+still the repository root.
 
 For local development, `frontend/.env.local` should contain:
 
