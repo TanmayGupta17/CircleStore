@@ -6,6 +6,11 @@ const nextConfig: NextConfig = {
   // unrelated lockfile outside the repository.
   turbopack: { root: path.resolve(__dirname) },
 
+  // Vercel's Preview Comments patcher currently cannot process Next 16.3's
+  // immutable static upload output. Opt out until the platform-side adapter
+  // supports it; assets remain deployment-scoped and deploy normally.
+  supportsImmutableAssets: false,
+
   images: {
     // Seeded sample listings use deterministic placeholder photography.
     remotePatterns: [
